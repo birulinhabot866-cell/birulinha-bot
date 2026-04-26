@@ -14,7 +14,7 @@ intents.members = True
 
 bot = commands.Bot(command_prefix="!", intents=intents)
 genai.configure(api_key=os.environ["GEMINI_API_KEY"])
-modelo = genai.GenerativeModel("gemini-1.5-flash")
+modelo = genai.GenerativeModel("gemini-2.5-flash-lite")
 historico_por_servidor = {}
 
 SYSTEM_PROMPT = """Você é o Birulinha, o mascote fofinho e parceirão da galera na call do Discord! Você é MUITO animado, carinhoso e divertido. Chama todo mundo de parceiro, mano ou galera. Usa gírias brasileiras. Responda MUITO curto, máximo 2 frases curtas. NÃO use emojis pois vai ser lido em voz alta."""
@@ -111,7 +111,8 @@ async def on_message(message):
                 asyncio.create_task(falar_na_call(message.guild.voice_client, resposta))
         except Exception as e:
             print(f"Erro: {e}")
-            await message.reply("Deu um bug aqui, tenta de novo!", mention_author=False)
+            erro_msg = str(e)[:200]
+            await message.reply(f"Deu bug aqui parceiro!\n```{erro_msg}```", mention_author=False)
 
 @bot.command(name="entrar")
 async def entrar(ctx):
