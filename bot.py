@@ -1,10 +1,10 @@
 import discord
-import anthropic
 import os
 import asyncio
 import re
 from discord.ext import commands
 from gtts import gTTS
+import google.generativeai as genai
 
 intents = discord.Intents.default()
 intents.message_content = True
@@ -13,7 +13,8 @@ intents.guilds = True
 intents.members = True
 
 bot = commands.Bot(command_prefix="!", intents=intents)
-claude_client = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
+genai.configure(api_key=os.environ["GEMINI_API_KEY"])
+modelo = genai.GenerativeModel("gemini-1.5-flash")
 historico_por_servidor = {}
 
 SYSTEM_PROMPT = """Você é o Birulinha, o mascote fofinho e parceirão da galera na call do Discord! Você é MUITO animado, carinhoso e divertido. Chama todo mundo de parceiro, mano ou galera. Usa gírias brasileiras. Responda MUITO curto, máximo 2 frases curtas. NÃO use emojis pois vai ser lido em voz alta."""
@@ -54,13 +55,16 @@ async def responder_com_ia(guild_id, autor, pergunta):
     if guild_id not in historico_por_servidor:
         historico_por_servidor[guild_id] = []
     h = historico_por_servidor[guild_id]
-    h.append({"role": "user", "content": f"{autor}: {pergunta}"})
+    h.append({"role": "user", "parts": [f"{autor}: {pergunta}"]})
     if len(h) > 20:
         h = h[-20:]
         historico_por_servidor[guild_id] = h
-    r = claude_client.messages.create(model="claude-sonnet-4-20250514", max_tokens=200, system=SYSTEM_PROMPT, messages=h)
-    resposta = r.content[0].text
-    h.append({"role": "assistant", "content": resposta})
+    chat = modelo.start_chat(history=h[:-1])
+    response = await asyncio.get_event_loop().run_in_executor(
+        None, lambda: chat.send_message(SYSTEM_PROMPT + "\n\n" + h[-1]["parts"][0])
+    )
+    resposta = response.text
+    h.append({"role": "model", "parts": [resposta]})
     return resposta
 
 def canal_texto(guild):
@@ -71,7 +75,7 @@ def canal_texto(guild):
 
 @bot.event
 async def on_ready():
-    print(f"Birulinha online! {bot.user}")
+    print(f"Birulinha online com Gemini! {bot.user}")
     await bot.change_presence(activity=discord.Activity(type=discord.ActivityType.listening, name="a galera na call"))
 
 @bot.event
